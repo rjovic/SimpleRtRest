@@ -3,6 +3,8 @@ SimpleRtRest
 
 SimpleRtRest is really simple Rest client for WinRt applications. It use new WinRt HttpClient as a base and gives you ability to consume Restfull services from your Windows 8 application with just few lines of code.
 
+This project is based on great .NET Rest client [RestSharp](https://github.com/restsharp/RestSharp) and main goal is to have something similar to use in Windows RT applications.
+
 More details TBD.
 
 Initial version only support limited set of features (basic RestFull verb requests and only form url encoded parameters content, JSON deserialization) which are not
