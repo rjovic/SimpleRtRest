@@ -50,15 +50,13 @@ namespace SimpleRtRest.RestClient
             if (!_isClientConfigured)
             {
                 _client.BaseAddress = new Uri(BaseUrl);
-                _client.DefaultRequestHeaders.Add("user-agent",
-                                                  UserAgent.Length > 0 ? UserAgent : "simpleRtRest-client-1.0");
+                _client.DefaultRequestHeaders.Add("user-agent", UserAgent.Length > 0 ? UserAgent : "simpleRtRest-client-1.0");
 
-                var authorization = Parameters.Find(p => p.Name.Equals("Authorization"));
-
-                if (authorization != null)
+               // check parameters (including httpBasic and SimpleAuthenticator params
+                foreach (var parameter in Parameters)
                 {
-                    _client.DefaultRequestHeaders.Add(authorization.Name, authorization.Value.ToString());
-                }      
+                    _client.DefaultRequestHeaders.Add(parameter.Name, parameter.Value.ToString());
+                }
 
                 _isClientConfigured = true;
             }
