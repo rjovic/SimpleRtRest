@@ -58,7 +58,7 @@ namespace SimpleRtRest.RestClient
         {
             if(Resource.Contains("{" + name + "}"))
             {
-                Resource.Replace("{" + name + "}", value.ToString());
+                Resource = Resource.Replace("{" + name + "}", value.ToString());
             }
 
             return this;
