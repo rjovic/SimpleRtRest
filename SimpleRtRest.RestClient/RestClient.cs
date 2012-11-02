@@ -118,8 +118,6 @@ namespace SimpleRtRest.RestClient
                 var response = await _client.SendAsync(_request);
                 var content = await response.Content.ReadAsStringAsync();
 
-                _request.Dispose();
-
                 return new RestResponse()
                 {
                     RawData = content,
@@ -149,6 +147,7 @@ namespace SimpleRtRest.RestClient
             catch (Exception ex)
             {
                 Debug.WriteLine("Error : ", ex.Message);
+                Debug.WriteLine("Data : ", raw.RawData);
                 // create excpetion var in response and pass it here
             }
 
