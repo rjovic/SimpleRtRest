@@ -103,6 +103,8 @@
     <Compile Include="Authenticators\IAuthenticator.cs" />
     <Compile Include="Authenticators\SimpleAuthenticator.cs" />
     <Compile Include="Enum.cs" />
+    <Compile Include="Exceptions\HttpExceptions.cs" />
+    <Compile Include="Exceptions\JsonExceptions.cs" />
     <Compile Include="IRestClient.cs" />
     <Compile Include="IRestRequest.cs" />
     <Compile Include="IRestResponse.cs" />

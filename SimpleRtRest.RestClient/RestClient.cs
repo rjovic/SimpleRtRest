@@ -4,11 +4,13 @@ using System.Linq;
 using System.Diagnostics;
 using System.Net.Http;
 using System.Threading.Tasks;
+using System.Net;
+using System.Text;
+
 using Newtonsoft.Json;
 
 using SimpleRtRest.RestClient.Authenticators;
-using System.Net;
-using System.Text;
+using SimpleRtRest.RestClient.Exceptions;
 
 namespace SimpleRtRest.RestClient
 {
@@ -112,10 +114,12 @@ namespace SimpleRtRest.RestClient
 
             ConfigureHttp();
             AddParameters(request);
+
+            HttpResponseMessage response = null;
             
             try
             {
-                var response = await _client.SendAsync(_request);
+                response = await _client.SendAsync(_request);
                 var content = await response.Content.ReadAsStringAsync();
 
                 return new RestResponse()
@@ -124,9 +128,22 @@ namespace SimpleRtRest.RestClient
                     StatusCode = response.StatusCode
                 };
             }
+            catch(HttpRequestException)
+            {
+                throw new HttpConnectionNotAvaliable();
+            }
             catch (Exception ex)
             {
-                throw new HttpRequestException(ex.Message);
+                if(response != null)
+                {
+                    return new RestResponse()
+                        {
+                            // return error code
+                            StatusCode = response.StatusCode
+                        };
+                }
+
+                throw new HttpException(ex.Message);
             }
         }
 
@@ -137,21 +154,25 @@ namespace SimpleRtRest.RestClient
 
         private RestResponse<T> Deserialize<T>(IRestResponse raw)
         {
-            var response = new RestResponse<T>();
-            try
+            if (raw.StatusCode == HttpStatusCode.OK)
             {
-                response.RawData = raw.RawData;
-                response.StatusCode = raw.StatusCode;
-                response.Data = JsonConvert.DeserializeObject<T>(raw.RawData);
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine("Error : ", ex.Message);
-                Debug.WriteLine("Data : ", raw.RawData);
-                // create excpetion var in response and pass it here
+                var response = new RestResponse<T>();
+                try
+                {
+                    response.RawData = raw.RawData;
+                    response.StatusCode = raw.StatusCode;
+                    response.Data = JsonConvert.DeserializeObject<T>(raw.RawData);
+                }
+                catch (JsonException ex)
+                {
+                    // create excpetion var in response and pass it here
+                    throw new JsonDeserializationException(ex.Message);
+                }
+
+                return response;
             }
 
-            return response;
+            return new RestResponse<T>() {StatusCode = raw.StatusCode};
         }
     }
 }
