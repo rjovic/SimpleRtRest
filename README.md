@@ -20,6 +20,8 @@ client.Authenticator = new HttpBasicAuthenticator(username, password);
 // url value which is included in all requests
 client.AddDefaultUrlSegment("MyDefaultParam", someDefaultValue);
 
+Require.Argument("MyParam", someValue);
+
 var request = new RestRequest(HttpMethod.POST);
 request.Resource = "resource-url.json";
 request.AddParameter("MyParam", someValue);
