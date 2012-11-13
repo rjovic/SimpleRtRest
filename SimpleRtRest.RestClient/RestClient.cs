@@ -16,6 +16,8 @@ namespace SimpleRtRest.RestClient
 {
     public class RestClient : IRestClient
     {
+        public bool IgnoreNullOnDeserialization { get; set; }
+
         private readonly HttpClient _client;
         private HttpRequestMessage _request;
        
@@ -104,6 +106,13 @@ namespace SimpleRtRest.RestClient
             {
                 _request.Content = new StringContent(parameters, Encoding.UTF8, MediaTypes.FormUrlEncoded);
             }
+            else if(request.Method == HttpMethod.Get)
+            {
+                var resource = _request.RequestUri.OriginalString;
+                resource = resource + "?" + parameters;
+
+                _request.RequestUri = new Uri(resource, UriKind.Relative);
+            }
         }
         
         public async Task<IRestResponse> Execute(IRestRequest request)
@@ -116,17 +125,27 @@ namespace SimpleRtRest.RestClient
             AddParameters(request);
 
             HttpResponseMessage response = null;
+            string content = null;
             
             try
             {
                 response = await _client.SendAsync(_request);
-                var content = await response.Content.ReadAsStringAsync();
+                content = await response.Content.ReadAsStringAsync();
 
-                return new RestResponse()
+                if (response.StatusCode == HttpStatusCode.OK)
                 {
-                    RawData = content,
-                    StatusCode = response.StatusCode
-                };
+                    return new RestResponse()
+                        {
+                            RawData = content,
+                            StatusCode = response.StatusCode
+                        };
+                }
+               
+                return new RestResponse()
+                    {
+                        ErrorMessage = content,
+                        StatusCode = response.StatusCode
+                    };
             }
             catch(HttpRequestException)
             {
@@ -139,7 +158,9 @@ namespace SimpleRtRest.RestClient
                     return new RestResponse()
                         {
                             // return error code
-                            StatusCode = response.StatusCode
+                            StatusCode = response.StatusCode,
+                            ErrorMessage = content,
+                            ErrorException = ex
                         };
                 }
 
@@ -149,19 +170,32 @@ namespace SimpleRtRest.RestClient
 
         public async Task<IRestResponse<T>> Execute<T>(IRestRequest request) where T : new()
         {
-            return Deserialize<T>(await Execute(request));
+            return Deserialize<T>(await Execute(request), request);
         }
 
-        private RestResponse<T> Deserialize<T>(IRestResponse raw)
+        private RestResponse<T> Deserialize<T>(IRestResponse raw, IRestRequest request)
         {
             if (raw.StatusCode == HttpStatusCode.OK)
             {
                 var response = new RestResponse<T>();
                 try
                 {
+                    response.Request = request;
+
                     response.RawData = raw.RawData;
                     response.StatusCode = raw.StatusCode;
-                    response.Data = JsonConvert.DeserializeObject<T>(raw.RawData);
+
+                    Debug.WriteLine(raw.RawData);
+
+                    if (IgnoreNullOnDeserialization)
+                    {
+                        var settings = new JsonSerializerSettings { NullValueHandling = NullValueHandling.Ignore};
+                        response.Data = JsonConvert.DeserializeObject<T>(raw.RawData, settings);
+                    }
+                    else
+                    {
+                        response.Data = JsonConvert.DeserializeObject<T>(raw.RawData);
+                    }
                 }
                 catch (JsonException ex)
                 {
@@ -172,7 +206,7 @@ namespace SimpleRtRest.RestClient
                 return response;
             }
 
-            return new RestResponse<T>() {StatusCode = raw.StatusCode};
+            return new RestResponse<T> {StatusCode = raw.StatusCode};
         }
     }
 }

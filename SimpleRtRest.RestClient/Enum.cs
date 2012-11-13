@@ -4,7 +4,8 @@
     {
         Header,
         UrlSegment,
-        Content
+        UrlParam,
+        Content,
     }
 
     public static class MediaTypes

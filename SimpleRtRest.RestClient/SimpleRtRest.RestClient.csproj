@@ -113,6 +113,7 @@
     <Compile Include="RestClient.cs" />
     <Compile Include="RestRequest.cs" />
     <Compile Include="RestResponse.cs" />
+    <Compile Include="Validation\Require.cs" />
   </ItemGroup>
   <ItemGroup>
     <Reference Include="Newtonsoft.Json">

@@ -63,5 +63,7 @@ namespace SimpleRtRest.RestClient
 
             return this;
         }
+
+        public string DateTimeFormat { get; set; }
     }
 }
