@@ -1,12 +1,14 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Diagnostics;
 using System.Net.Http;
+using System.Net.Http.Headers;
 using System.Threading.Tasks;
 using System.Net;
 using System.Text;
-
+using System.Xml.Serialization;
 using Newtonsoft.Json;
 
 using SimpleRtRest.RestClient.Authenticators;
@@ -92,7 +94,7 @@ namespace SimpleRtRest.RestClient
         private void AddParameters(IRestRequest request)
         {
             string parameters = String.Empty;
-            foreach (var parameter in request.Parameters.Where(p => p.Type == ParameterType.Content))
+            foreach (var parameter in request.Parameters.Where(p => p.Type == ParameterType.GetOrPost))
             {
                 if(parameters.Length > 0)
                 {
@@ -102,9 +104,24 @@ namespace SimpleRtRest.RestClient
                 parameters = parameters + (String.Format("{0}={1}", WebUtility.UrlEncode(parameter.Name), WebUtility.UrlEncode(parameter.Value.ToString())));
             }
 
+            var body = request.Parameters.FirstOrDefault(p => p.Type == ParameterType.RequestBody);
+
             if (request.Method == HttpMethod.Post || request.Method == HttpMethod.Put)
             {
-                _request.Content = new StringContent(parameters, Encoding.UTF8, MediaTypes.FormUrlEncoded);
+                if(body != null && parameters.Length > 0)
+                {
+                    throw new Exception("You cannot send UrlFormEncoded and json/xml data together in body content.");
+                }
+
+                if(body != null)
+                {
+                    // little hack : parametar name have MediaType info when ParametarType is RequestBody
+                    _request.Content = new StringContent(body.Value.ToString(), Encoding.UTF8, body.Name);
+                }
+                else
+                {
+                    _request.Content = new StringContent(parameters, Encoding.UTF8, MediaTypes.FormUrlEncoded);
+                }
             }
             else if(request.Method == HttpMethod.Get)
             {
@@ -126,17 +143,23 @@ namespace SimpleRtRest.RestClient
 
             HttpResponseMessage response = null;
             string content = null;
+
+            if(!String.IsNullOrEmpty(request.RequestFormat))
+            {
+                _request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue(request.RequestFormat));
+            }
             
             try
             {
                 response = await _client.SendAsync(_request);
                 content = await response.Content.ReadAsStringAsync();
 
-                if (response.StatusCode == HttpStatusCode.OK)
+                if (response.StatusCode == HttpStatusCode.OK || response.StatusCode == HttpStatusCode.Created)
                 {
                     return new RestResponse()
                         {
                             RawData = content,
+                            ResponseFormat = response.Content.Headers.ContentType.MediaType,
                             StatusCode = response.StatusCode
                         };
                 }
@@ -144,6 +167,7 @@ namespace SimpleRtRest.RestClient
                 return new RestResponse()
                     {
                         ErrorMessage = content,
+                        ResponseFormat = response.Content.Headers.ContentType.MediaType,
                         StatusCode = response.StatusCode
                     };
             }
@@ -160,6 +184,7 @@ namespace SimpleRtRest.RestClient
                             // return error code
                             StatusCode = response.StatusCode,
                             ErrorMessage = content,
+                            ResponseFormat = response.Content.Headers.ContentType.MediaType,
                             ErrorException = ex
                         };
                 }
@@ -175,7 +200,7 @@ namespace SimpleRtRest.RestClient
 
         private RestResponse<T> Deserialize<T>(IRestResponse raw, IRestRequest request)
         {
-            if (raw.StatusCode == HttpStatusCode.OK)
+            if (raw.StatusCode == HttpStatusCode.OK || raw.StatusCode == HttpStatusCode.Created)
             {
                 var response = new RestResponse<T>();
                 try
@@ -184,23 +209,40 @@ namespace SimpleRtRest.RestClient
 
                     response.RawData = raw.RawData;
                     response.StatusCode = raw.StatusCode;
+                    response.ResponseFormat = raw.ResponseFormat;
 
                     Debug.WriteLine(raw.RawData);
 
-                    if (IgnoreNullOnDeserialization)
+                    if (response.ResponseFormat == DataFormat.Json)
                     {
-                        var settings = new JsonSerializerSettings { NullValueHandling = NullValueHandling.Ignore};
-                        response.Data = JsonConvert.DeserializeObject<T>(raw.RawData, settings);
+                        if (IgnoreNullOnDeserialization)
+                        {
+                            var settings = new JsonSerializerSettings {NullValueHandling = NullValueHandling.Ignore};
+                            response.Data = JsonConvert.DeserializeObject<T>(raw.RawData, settings);
+                        }
+                        else
+                        {
+                            response.Data = JsonConvert.DeserializeObject<T>(raw.RawData);
+                        }
                     }
                     else
                     {
-                        response.Data = JsonConvert.DeserializeObject<T>(raw.RawData);
+                        var serializer = new XmlSerializer(typeof(T));
+                        using (var reader = new StringReader(response.RawData))
+                        {
+                            response.Data = (T)serializer.Deserialize(reader);
+                        }
                     }
                 }
                 catch (JsonException ex)
                 {
                     // create excpetion var in response and pass it here
                     throw new JsonDeserializationException(ex.Message);
+                }
+                catch(InvalidOperationException ex)
+                {
+                    // create excpetion var in response and pass it here
+                    throw new XmlDeserializationException(ex.Message);
                 }
 
                 return response;

@@ -9,6 +9,7 @@ namespace SimpleRtRest.RestClient
         
         string RawData { get; set; }
         string ErrorMessage { get; set; }
+        string ResponseFormat { get; set; }
         HttpStatusCode StatusCode { get; set; }
 
         Exception ErrorException { get; set; }

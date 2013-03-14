@@ -1,11 +1,15 @@
-﻿using System.Collections.Generic;
+﻿using Newtonsoft.Json;
+using System.Collections.Generic;
+using System.IO;
 using System.Net.Http;
+using System.Xml.Serialization;
+
 namespace SimpleRtRest.RestClient
 {
     public class RestRequest : IRestRequest
     {
         private HttpMethod _method = HttpMethod.Get;
-
+        
         public HttpMethod Method
         {
             get { return _method; }
@@ -13,6 +17,9 @@ namespace SimpleRtRest.RestClient
         }
 
         public string Resource { get; set; }
+        public string RequestFormat { get; set; }
+        public string DateTimeFormat { get; set; }
+
         public List<Parameter> Parameters { get; set; }
 
         public RestRequest()
@@ -44,7 +51,7 @@ namespace SimpleRtRest.RestClient
 
         public IRestRequest AddParameter(string name, object value)
         {
-            Parameters.Add(new Parameter() { Name = name, Value = value, Type = ParameterType.Content});
+            Parameters.Add(new Parameter() { Name = name, Value = value, Type = ParameterType.GetOrPost});
             return this;
         }
 
@@ -54,6 +61,30 @@ namespace SimpleRtRest.RestClient
             return this;
         }
 
+        public IRestRequest AddBody(object o)
+        {
+            string serialized;
+            string contentType;
+            
+            switch (RequestFormat)
+            {
+                case DataFormat.Xml:
+                    serialized = SerializeAsXml(o);
+                    contentType = "application/xml";
+                    break;
+                case DataFormat.Json:
+                    serialized = JsonConvert.SerializeObject(o);
+                    contentType = "application/json";
+                    break;
+                default:
+                    serialized = string.Empty;
+                    contentType = string.Empty;
+                    break;
+            }
+
+            return AddParameter(contentType, serialized, ParameterType.RequestBody);
+        }
+        
         public IRestRequest AddUrlSegment(string name, object value)
         {
             if(Resource.Contains("{" + name + "}"))
@@ -64,6 +95,13 @@ namespace SimpleRtRest.RestClient
             return this;
         }
 
-        public string DateTimeFormat { get; set; }
+        private string SerializeAsXml(object o)
+        {
+            var serializer = new XmlSerializer(o.GetType());
+            var writer = new StringWriter();
+            serializer.Serialize(writer, o);
+
+            return writer.ToString();
+        }
     }
 }

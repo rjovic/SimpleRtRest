@@ -6,6 +6,8 @@ namespace SimpleRtRest.RestClient
     public interface IRestRequest
     {
         string Resource { get; set; }
+        string RequestFormat { get; set; }
+
         HttpMethod Method { get; set; }
         List<Parameter> Parameters { get; set; }
 
@@ -14,6 +16,8 @@ namespace SimpleRtRest.RestClient
         IRestRequest AddParameter(Parameter p);
         IRestRequest AddParameter(string name, object value);
         IRestRequest AddParameter(string name, object value, ParameterType type);
+
+        IRestRequest AddBody(object o);
 
         IRestRequest AddUrlSegment(string name, object value);
     }

@@ -105,6 +105,7 @@
     <Compile Include="Enum.cs" />
     <Compile Include="Exceptions\HttpExceptions.cs" />
     <Compile Include="Exceptions\JsonExceptions.cs" />
+    <Compile Include="Exceptions\XmlExceptions.cs" />
     <Compile Include="IRestClient.cs" />
     <Compile Include="IRestRequest.cs" />
     <Compile Include="IRestResponse.cs" />
